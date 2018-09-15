@@ -1,0 +1,345 @@
+knitr::opts_chunk$set(fig.align = "center", message = FALSE, warning = FALSE)
+options(warn = -1)
+suppressMessages(library(caret))
+suppressMessages(library(nnet))
+suppressMessages(library(tree))
+suppressMessages(library(ISLR))
+suppressMessages(library(randomForest))
+suppressMessages(library(mlbench))
+suppressMessages(library(MASS))
+suppressMessages(library(e1071))
+suppressMessages(library(corrplot))
+install.packages('corrplot')
+options(warn = -1)
+suppressMessages(library(caret))
+suppressMessages(library(nnet))
+suppressMessages(library(tree))
+suppressMessages(library(ISLR))
+suppressMessages(library(randomForest))
+suppressMessages(library(mlbench))
+suppressMessages(library(MASS))
+suppressMessages(library(e1071))
+suppressMessages(library(corrplot))
+#This two libraries are to be commented in Windows
+suppressMessages(library(parallel))
+suppressMessages(library(doParallel))
+glm = glm(left ~ ., train_HR, family = "binomial")
+c(cv_knn_scale,cv_knn_unscale)
+knitr::opts_chunk$set(fig.align = "center", message = FALSE, warning = FALSE)
+options(warn = -1)
+suppressMessages(library(caret))
+suppressMessages(library(nnet))
+suppressMessages(library(tree))
+suppressMessages(library(ISLR))
+suppressMessages(library(randomForest))
+suppressMessages(library(mlbench))
+suppressMessages(library(MASS))
+suppressMessages(library(e1071))
+suppressMessages(library(corrplot))
+#These two libraries are to be commented in Windows
+suppressMessages(library(parallel))
+suppressMessages(library(doParallel))
+cluster =  makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+seed = 12345
+ClassAcc = function(predicted,actual)
+{
+return(mean(predicted == actual))
+}
+get_best_result = function(caret_fit) {
+best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+best_result = caret_fit$results[best, ]
+rownames(best_result) = NULL
+best_result
+}
+data_HR = read.csv('HR_comma_sep.csv')
+factor_cols = c('Work_accident', 'left', 'promotion_last_5years', 'sales', 'salary')
+data_HR[,factor_cols] = data.frame(apply(data_HR[factor_cols], 2, as.factor))
+colnames(data_HR)= c("satisfaction","evaluation","projects","hours","years","accident",
+"left","promotion","sales","salary")
+train_index = sample(1:nrow(data_HR), size = round(0.5 * nrow(data_HR)))
+train_HR = data_HR[train_index, ]
+test_HR = data_HR[-train_index, ]
+glm = glm(left ~ ., train_HR, family = "binomial")
+prob = predict(glm,newdata = test_HR,type = 'response')
+pred = ifelse(prob > 0.5, 1, 0)
+acc_glm = ClassAcc(pred,test_HR$left)
+acc_glm
+#Scaled Result for KNN
+set.seed(seed)
+knn_scale = train(
+left ~ .,
+data = train_HR,
+method = "knn",
+trControl = trainControl(method = "cv", number = 5),
+preProcess = c("center", "scale")
+)
+cv_knn_scale = get_best_result(knn_scale)$Accuracy
+acc_knn_scale = ClassAcc(
+predict(knn_scale, test_HR),
+test_HR$left
+)
+#Unscaled Result for KNN
+set.seed(seed)
+knn_unscale = train(
+left ~ .,
+data = train_HR,
+method = "knn",
+trControl = trainControl(method = "cv", number = 5)
+)
+cv_knn_unscale = get_best_result(knn_unscale)$Accuracy
+acc_knn_unscale = ClassAcc(
+predict(knn_unscale, test_HR),
+test_HR$left
+)
+c(cv_knn_scale,cv_knn_unscale)
+c(acc_knn_scale,acc_knn_unscale)
+flat= c(1,1)/2
+lda_norm = lda(left ~ ., train_HR)
+acc_lda_norm = ClassAcc(predict(lda_norm, test_HR)$class, test_HR$left) #LDA (with Priors estimated from data)
+lda_flat = lda(left ~ ., train_HR,prior=flat)
+acc_lda_flat = ClassAcc(predict(lda_flat, test_HR)$class, test_HR$left) #LDA with Flat Prior
+c(acc_lda_norm,acc_lda_flat)
+qda_norm = qda(left ~ ., train_HR)
+acc_qda_norm = ClassAcc(predict(qda_norm, test_HR)$class, test_HR$left)
+#QDA (with Priors estimated from data)
+qda_flat = qda(left ~ ., train_HR, prior=flat)
+acc_qda_flat = ClassAcc(predict(qda_flat, test_HR)$class, test_HR$left)
+#QDA (with Flat Prior)
+c(acc_qda_norm,acc_qda_flat)
+nb_mod = train(
+left ~ .,
+data = train_HR,
+trControl = trainControl(method = "cv", number = 5),
+method = "nb"
+)
+acc_nb_tuned =get_best_result(nb_mod)$Accuracy
+acc_nb_tuned
+#Here Naive Bayes does not perform well because
+#there is clearly significant correlation between the predictors.
+set.seed(seed)
+lin_grid = expand.grid(C = c(2 ^ (-5:5)))
+if (FALSE){
+svmLinear_tuned = train(
+left~.,
+data = train_HR,
+method = 'svmLinear',
+trControl = trainControl(method = "cv", number = 5)
+)
+}
+svmLinear_tuned= readRDS("svmPoly.rds")
+pred = predict(svmLinear_tuned,test_HR)
+acc_svmLinear = ClassAcc(pred,test_HR$left)
+acc_svmLinear
+set.seed(seed)
+if (FALSE){
+svmRadial_tuned = train(
+left~.,
+data = train_HR,
+method = 'svmRadial',
+trControl = trainControl(method = "cv", number = 5)
+)
+}
+svmRadial_tuned = readRDS("svmPoly.rds")
+pred = predict(svmRadial_tuned,test_HR)
+acc_svmRadial = ClassAcc(pred,test_HR$left)
+acc_svmRadial
+set.seed(seed)
+if (FALSE){
+svmPoly_tuned = train(
+left~.,
+data = train_HR,
+method = 'svmPoly',
+trControl = trainControl(method = "cv", number = 5)
+)
+}
+svmPoly_tuned = readRDS("svmPoly.rds")
+pred = predict(svmPoly_tuned,test_HR)
+acc_svmPoly = ClassAcc(pred,test_HR$left)
+acc_svmPoly
+knitr::opts_chunk$set(fig.align = "center", message = FALSE, warning = FALSE)
+options(warn = -1)
+suppressMessages(library(caret))
+suppressMessages(library(nnet))
+suppressMessages(library(tree))
+suppressMessages(library(ISLR))
+suppressMessages(library(randomForest))
+suppressMessages(library(mlbench))
+suppressMessages(library(MASS))
+suppressMessages(library(e1071))
+suppressMessages(library(corrplot))
+#These two libraries are to be commented in Windows
+suppressMessages(library(parallel))
+suppressMessages(library(doParallel))
+cluster =  makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+seed = 12345
+ClassAcc = function(predicted,actual)
+{
+return(mean(predicted == actual))
+}
+get_best_result = function(caret_fit) {
+best = which(rownames(caret_fit$results) == rownames(caret_fit$bestTune))
+best_result = caret_fit$results[best, ]
+rownames(best_result) = NULL
+best_result
+}
+data_HR = read.csv('HR_comma_sep.csv')
+factor_cols = c('Work_accident', 'left', 'promotion_last_5years', 'sales', 'salary')
+data_HR[,factor_cols] = data.frame(apply(data_HR[factor_cols], 2, as.factor))
+colnames(data_HR)= c("satisfaction","evaluation","projects","hours","years","accident",
+"left","promotion","sales","salary")
+train_index = sample(1:nrow(data_HR), size = round(0.5 * nrow(data_HR)))
+train_HR = data_HR[train_index, ]
+test_HR = data_HR[-train_index, ]
+glm = glm(left ~ ., train_HR, family = "binomial")
+prob = predict(glm,newdata = test_HR,type = 'response')
+pred = ifelse(prob > 0.5, 1, 0)
+acc_glm = ClassAcc(pred,test_HR$left)
+acc_glm
+#Scaled Result for KNN
+set.seed(seed)
+knn_scale = train(
+left ~ .,
+data = train_HR,
+method = "knn",
+trControl = trainControl(method = "cv", number = 5),
+preProcess = c("center", "scale")
+)
+cv_knn_scale = get_best_result(knn_scale)$Accuracy
+acc_knn_scale = ClassAcc(
+predict(knn_scale, test_HR),
+test_HR$left
+)
+#Unscaled Result for KNN
+set.seed(seed)
+knn_unscale = train(
+left ~ .,
+data = train_HR,
+method = "knn",
+trControl = trainControl(method = "cv", number = 5)
+)
+cv_knn_unscale = get_best_result(knn_unscale)$Accuracy
+acc_knn_unscale = ClassAcc(
+predict(knn_unscale, test_HR),
+test_HR$left
+)
+c(cv_knn_scale,cv_knn_unscale)
+c(acc_knn_scale,acc_knn_unscale)
+flat= c(1,1)/2
+lda_norm = lda(left ~ ., train_HR)
+acc_lda_norm = ClassAcc(predict(lda_norm, test_HR)$class, test_HR$left) #LDA (with Priors estimated from data)
+lda_flat = lda(left ~ ., train_HR,prior=flat)
+acc_lda_flat = ClassAcc(predict(lda_flat, test_HR)$class, test_HR$left) #LDA with Flat Prior
+c(acc_lda_norm,acc_lda_flat)
+qda_norm = qda(left ~ ., train_HR)
+acc_qda_norm = ClassAcc(predict(qda_norm, test_HR)$class, test_HR$left)
+#QDA (with Priors estimated from data)
+qda_flat = qda(left ~ ., train_HR, prior=flat)
+acc_qda_flat = ClassAcc(predict(qda_flat, test_HR)$class, test_HR$left)
+#QDA (with Flat Prior)
+c(acc_qda_norm,acc_qda_flat)
+set.seed(seed)
+lin_grid = expand.grid(C = c(2 ^ (-5:5)))
+if (FALSE){
+svmLinear_tuned = train(
+left~.,
+data = train_HR,
+method = 'svmLinear',
+trControl = trainControl(method = "cv", number = 5)
+)
+}
+svmLinear_tuned= readRDS("svmLinear.rds")
+pred = predict(svmLinear_tuned,test_HR)
+acc_svmLinear = ClassAcc(pred,test_HR$left)
+acc_svmLinear
+set.seed(seed)
+if (FALSE){
+svmPoly_tuned = train(
+left~.,
+data = train_HR,
+method = 'svmPoly',
+trControl = trainControl(method = "cv", number = 5)
+)
+}
+svmPoly_tuned = readRDS("svmPoly.rds")
+pred = predict(svmPoly_tuned,test_HR)
+acc_svmPoly = ClassAcc(pred,test_HR$left)
+acc_svmPoly
+set.seed(seed)
+#####This are the lines used in final model ######
+tunegrid = expand.grid(.mtry = c(1:10))
+if (FALSE){
+rf = train(left~., data=train_HR, method = 'rf', tuneGrid=tunegrid,
+trConrol = trainControl(method = 'oob')
+)
+}
+rf = readRDS("caretRF.rds")
+best_mtry = get_best_result(rf)$mtry
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+plot(rf$results$mtry,rf$results$Accuracy,pch = 19,xlab = 'Predictors used',
+ylab = 'Cross Validation Accuracy',
+main = 'Cross Validation Accuracy vs Number of  Predictors used'
+)
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+varImpPlot(best_rf)
+pred_rf = predict(rf, newdata = test_HR)
+acc_rf = ClassAcc(pred_rf,test_HR$left)
+acc_rf
+exp_tree = tree(left ~ ., data = train_HR)
+plot(exp_tree,type= c("uniform"))
+text(exp_tree, pretty = 4)
+title(main = "Unpruned Classification Tree")
+set.seed(seed)
+tunegrid = expand.grid(.mtry = c(1:10))
+if (FALSE){
+rf = train(left~., data=train_HR, method = 'rf', tuneGrid=tunegrid,
+trConrol = trainControl(method = 'oob')
+)
+}
+rf = readRDS("caretRF.rds")
+best_mtry = get_best_result(rf)$mtry
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+plot(rf$results$mtry,rf$results$Accuracy,pch = 19,xlab = 'Predictors used',
+ylab = 'Cross Validation Accuracy',
+main = 'Cross Validation Accuracy vs Number of  Predictors used'
+)
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+pred_rf = predict(rf, newdata = test_HR)
+acc_rf = ClassAcc(pred_rf,test_HR$left)
+acc_rf
+set.seed(seed)
+tunegrid = expand.grid(.mtry = c(1:10))
+if (FALSE){
+rf = train(left~., data=train_HR, method = 'rf', tuneGrid=tunegrid,
+trConrol = trainControl(method = 'oob')
+)
+}
+rf = readRDS("caretRF.rds")
+best_mtry = get_best_result(rf)$mtry
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+plot(rf$results$mtry,rf$results$Accuracy,pch = 19,xlab = 'Predictors used',
+ylab = 'Cross Validation Accuracy',
+main = 'Cross Validation Accuracy vs Number of  Predictors used'
+)
+best_rf = randomForest(left ~ ., train_HR,mtry = best_mtry)
+pred_rf = predict(rf, newdata = test_HR)
+acc_rf = ClassAcc(pred_rf,test_HR$left)
+acc_rf
+varImpPlot(best_rf)
+set.seed(seed)
+gbm_grid = expand.grid(interaction.depth = c(1, 2),
+n.trees = c(500, 1000, 1500),
+shrinkage = c(0.001, 0.01, 0.1),
+n.minobsinnode = 10)
+if (FALSE){
+gbm = train(left ~ ., data = train_HR,
+method = "gbm",
+trControl = trainControl(method = "cv", number = 5),
+verbose = FALSE,
+tuneGrid = gbm_grid)
+}
+gbm = readRDS('gbm.rds')
+pred_gbm = predict(gbm, newdata = test_HR)
+acc_gbm = ClassAcc(pred_gbm,test_HR$left)
+acc_gbm
